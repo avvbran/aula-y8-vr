@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Práctica 4.2: Escenario VR - Aula Rediseñada</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        
+        #canvas-container {
+            flex: 1;
+            width: 100%;
+            position: relative;
+            background: radial-gradient(circle at center, #2a2a2a 0%, #1a1a1a 100%);
+        }
+        
+        canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+            outline: none;
+        }
+
+        #VRButton {
+            z-index: 10;
+            bottom: 110px !important; 
+            padding: 12px 24px !important;
+            border: 2px solid hsl(125, 98%, 52%) !important;
+            border-radius: 8px !important;
+            background: rgba(33, 37, 41, 0.9) !important;
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            letter-spacing: 1px;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        #VRButton:hover {
+            background: #0d6efd !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 15px rgba(53, 253, 13, 0.5);
+            transform: scale(1.05);
+        }
+
+        .navbar {
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #000080;">
+        <div class="container-fluid justify-content-center">
+            <span class="navbar-brand fw-bold m-0">4.2 Creación de escenarios VR</span>
+        </div>
+    </nav>
+
+    <div id="canvas-container"></div>
+
+    <footer class="bg-dark text-white text-center py-3 mt-auto border-top border-secondary">
+        <div class="container">
+            <p class="mb-1"><strong>Alumno:</strong> Kevin Bryan Labra Lugo | <strong>Materia:</strong> Graficación | <strong>Docente:</strong> Ing. Víctor Manuel Pinedo Fernández</p>
+            <small class="text-muted">Instituto Tecnológico de Pachuca &copy; 2026 - Fecha: 25 / Mayo / 2026</small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { VRButton } from 'three/addons/webxr/VRButton.js';
+
+        const container = document.getElementById('canvas-container');
+        let scene, camera, renderer, controls, playerRig;
+
+        // Función para crear una silla con forma cilíndrica moderna
+        function createModernChair() {
+            const group = new THREE.Group();
+            
+            // Asiento (cilindro)
+            const seatGeometry = new THREE.CylinderGeometry(0.22, 0.22, 0.08, 16);
+            const seatMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x2c3e50,
+                metalness: 0.1,
+                roughness: 0.7
+            });
+            const seat = new THREE.Mesh(seatGeometry, seatMaterial);
+            seat.position.y = 0.45;
+            group.add(seat);
+            
+            // Respaldo (cilindro vertical)
+            const backGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.45, 16);
+            const backMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x2c3e50,
+                metalness: 0.1,
+                roughness: 0.7
+            });
+            const back = new THREE.Mesh(backGeometry, backMaterial);
+            back.position.set(0, 0.68, -0.15);
+            group.add(back);
+            
+            // Patas (4 cilindros)
+            const legGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.45, 8);
+            const legMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x1a1a1a,
+                metalness: 0.2,
+                roughness: 0.6
+            });
+            
+            const legPositions = [
+                [-0.16, 0, -0.16],
+                [0.16, 0, -0.16],
+                [-0.16, 0, 0.16],
+                [0.16, 0, 0.16]
+            ];
+            
+            legPositions.forEach(pos => {
+                const leg = new THREE.Mesh(legGeometry, legMaterial);
+                leg.position.set(pos[0], pos[1], pos[2]);
+                group.add(leg);
+            });
+            
+            return group;
+        }
+
+        // Función para crear una mesa moderna
+        function createModernTable() {
+            const group = new THREE.Group();
+            
+            // Tablero (rectángulo)
+            const topGeometry = new THREE.BoxGeometry(1.2, 0.04, 0.6);
+            const topMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4a3728,
+                metalness: 0.05,
+                roughness: 0.8
+            });
+            const top = new THREE.Mesh(topGeometry, topMaterial);
+            top.position.y = 0.74;
+            group.add(top);
+            
+            // Patas (4 cubos grandes)
+            const legGeometry = new THREE.BoxGeometry(0.1, 0.74, 0.1);
+            const legMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x2c2c2c,
+                metalness: 0.1,
+                roughness: 0.7
+            });
+            
+            const legPositions = [
+                [-0.5, 0, -0.25],
+                [0.5, 0, -0.25],
+                [-0.5, 0, 0.25],
+                [0.5, 0, 0.25]
+            ];
+            
+            legPositions.forEach(pos => {
+                const leg = new THREE.Mesh(legGeometry, legMaterial);
+                leg.position.set(pos[0], pos[1], pos[2]);
+                group.add(leg);
+            });
+            
+            return group;
+        }
+
+        // Función para crear las paredes del aula
+        function createClassroomWalls() {
+            const walls = new THREE.Group();
+            
+            // Pared frontal
+            const frontWallGeometry = new THREE.BoxGeometry(10, 3, 0.2);
+            const wallMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xe8e8e8,
+                metalness: 0.0,
+                roughness: 0.9
+            });
+            const frontWall = new THREE.Mesh(frontWallGeometry, wallMaterial);
+            frontWall.position.set(0, 1.5, -5);
+            walls.add(frontWall);
+            
+            // Pared trasera
+            const backWall = new THREE.Mesh(frontWallGeometry, wallMaterial);
+            backWall.position.set(0, 1.5, 5);
+            walls.add(backWall);
+            
+            // Pared izquierda
+            const sideWallGeometry = new THREE.BoxGeometry(0.2, 3, 10);
+            const leftWall = new THREE.Mesh(sideWallGeometry, wallMaterial);
+            leftWall.position.set(-5, 1.5, 0);
+            walls.add(leftWall);
+            
+            // Pared derecha
+            const rightWall = new THREE.Mesh(sideWallGeometry, wallMaterial);
+            rightWall.position.set(5, 1.5, 0);
+            walls.add(rightWall);
+            
+            // Suelo
+            const floorGeometry = new THREE.BoxGeometry(10, 0.1, 10);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x404040,
+                metalness: 0.0,
+                roughness: 0.95
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.position.y = -0.05;
+            walls.add(floor);
+            
+            // Techo
+            const ceilingGeometry = new THREE.BoxGeometry(10, 0.1, 10);
+            const ceilingMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xd0d0d0,
+                metalness: 0.0,
+                roughness: 0.9
+            });
+            const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+            ceiling.position.y = 3.05;
+            walls.add(ceiling);
+            
+            return walls;
+        }
+
+        init();
+
+        function init() {
+            // Configuración de la escena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+
+            // Cámara
+            camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
+            
+            playerRig = new THREE.Group();
+            scene.add(playerRig);
+            playerRig.add(camera);
+            camera.position.set(0, 1.6, 0);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.xr.enabled = true;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.3;
+            
+            container.appendChild(renderer.domElement);
+            document.body.appendChild(VRButton.createButton(renderer));
+
+            // Iluminación
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
+            scene.add(ambientLight);
+
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+            hemiLight.position.set(0, 20, 0);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            dirLight.position.set(5, 10, 7.5);
+            scene.add(dirLight);
+
+            // Controles
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Crear y agregar las paredes del aula
+            const walls = createClassroomWalls();
+            scene.add(walls);
+
+            // Crear y agregar sillas en nuevas posiciones
+            const chairPositions = [
+                { x: -3.5, z: -3 },
+                { x: -3.5, z: -0.5 },
+                { x: -3.5, z: 2 },
+                { x: 0, z: -3 },
+                { x: 0, z: -0.5 },
+                { x: 0, z: 2 },
+                { x: 3.5, z: -3 },
+                { x: 3.5, z: -0.5 },
+                { x: 3.5, z: 2 },
+            ];
+            
+            chairPositions.forEach(pos => {
+                const chair = createModernChair();
+                chair.position.set(pos.x, 0, pos.z);
+                scene.add(chair);
+            });
+
+            // Crear y agregar mesas en nuevas posiciones
+            const tablePositions = [
+                { x: -3.5, z: -1.5 },
+                { x: 0, z: -1.5 },
+                { x: 3.5, z: -1.5 },
+                { x: -3.5, z: 1 },
+                { x: 0, z: 1 },
+                { x: 3.5, z: 1 },
+            ];
+            
+            tablePositions.forEach(pos => {
+                const table = createModernTable();
+                table.position.set(pos.x, 0, pos.z);
+                scene.add(table);
+            });
+
+            // Cargar el modelo base del aula (solo como referencia de estructura)
+            const loader = new GLTFLoader();
+            loader.load('aula-y8.glb', function (gltf) {
+                const model = gltf.scene;
+                
+                // Hacer invisible el modelo original para que solo se vea el nuevo diseño
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.visible = false;
+                    }
+                });
+                
+                scene.add(model);
+                console.log('Modelo base cargado (invisible). Usando nuevo diseño de aula.');
+            }, undefined, function (error) {
+                console.warn('Nota: Modelo base no cargado, usando solo geometrías personalizadas.');
+            });
+
+            // Posicionar la cámara
+            playerRig.position.set(0, 0, 0);
+            controls.target.set(0, 1.5, 0);
+            controls.update();
+
+            // Manejo del resize
+            window.addEventListener('resize', onWindowResize, false);
+
+            // Ciclo de animación
+            renderer.setAnimationLoop(renderCycle);
+        }
+
+        function onWindowResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function renderCycle() {
+            if (!renderer.xr.isPresenting) {
+                controls.update();
+            }
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
